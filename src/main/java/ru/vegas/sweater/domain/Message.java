@@ -9,12 +9,14 @@ import javax.validation.constraints.NotBlank;
 public class Message {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @NotBlank(message = "Please fill the message")
     @Length(max = 2048, message = "Message too long (more 2Kb)")
     private String text;
+
+    @Length(max = 255, message = "Message too long (more than 255)")
     private String tag;
 
     @ManyToOne(fetch = FetchType.EAGER)

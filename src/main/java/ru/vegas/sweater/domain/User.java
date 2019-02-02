@@ -14,18 +14,14 @@ import java.util.Set;
 public class User implements UserDetails {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @NotBlank(message = "Username cannot be empty")
     private String username;
 
-    @NotBlank(message = "Password confirmation be empty")
-    private String password;
-
-    @Transient
     @NotBlank(message = "Password cannot be empty")
-    private String password2;
+    private String password;
 
     private boolean active;
 
@@ -123,13 +119,5 @@ public class User implements UserDetails {
 
     public boolean isAdmin() {
         return roles.contains(Role.ADMIN);
-    }
-
-    public String getPassword2() {
-        return password2;
-    }
-
-    public void setPassword2(String password2) {
-        this.password2 = password2;
     }
 }
