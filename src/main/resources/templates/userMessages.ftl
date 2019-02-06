@@ -17,7 +17,6 @@
                         <h3 class="card-text">
                             <a href="/user/subscriptions/${userChannel.id}/list">${subscriptionsCount}</a>
                         </h3>
-
                     </div>
                 </div>
             </div>

@@ -3,7 +3,7 @@
     <div class="form-row">
         <div class="form-group col-md-6">
             <form method="get" action="/main" class="form-inline">
-                <input class="form-control" type="text" name="tag" value="${tag!}" placeholder="Поиск по тэгу">
+                <input class="form-control" type="text" name="tag" value="${tag!}" placeholder="Поиск по тэгу"/>
                 <button type="submit" class="btn btn-primary ml-2">Поиск</button>
             </form>
         </div>
