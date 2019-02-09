@@ -2,37 +2,44 @@ package ru.vegas.sweater.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
 import ru.vegas.sweater.domain.Message;
 import ru.vegas.sweater.domain.User;
+import ru.vegas.sweater.domain.dto.MessageDto;
 import ru.vegas.sweater.repos.MessageRepo;
+import ru.vegas.sweater.service.MessageService;
 
 import javax.validation.Valid;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
 @Controller
-public class MainController {
+public class MessageController {
 
     @Value("${upload.path}")
     private String uploadPath;
 
     @Autowired
     private MessageRepo messageRepo;
+
+    @Autowired
+    private MessageService messageService;
 
     @GetMapping("/")
     public String greeting(Model model) {
@@ -41,17 +48,15 @@ public class MainController {
 
     @GetMapping("/main")
     public String main(
-            @RequestParam(required = false, defaultValue = "") String tag, Model model
-    ) {
-        Iterable<Message> messages;
+            @RequestParam(required = false, defaultValue = "") String tag,
+            Model model,
+            @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable,
+            @AuthenticationPrincipal User user
+            ) {
+        Page<MessageDto> page = messageService.messageList(pageable, tag, user);
 
-        if(tag != null && !tag.isEmpty())
-            messages = messageRepo.findByTag(tag);
-        else
-            messages = messageRepo.findAll();
-
-
-        model.addAttribute("messages", messages);
+        model.addAttribute("page", page);
+        model.addAttribute("url", "/main");
         model.addAttribute("tag", tag);
 
         return "main";
@@ -63,6 +68,7 @@ public class MainController {
             @Valid Message message,
             BindingResult bindingResult,
             @RequestParam("file") MultipartFile file,
+            @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable,
             Model model
     ) throws IOException {
         message.setAuthor(user);
@@ -81,9 +87,10 @@ public class MainController {
             messageRepo.save(message);
         }
 
-        Iterable<Message> messages = messageRepo.findAll();
+        Page<MessageDto> page = messageRepo.findAll(pageable, user);
 
-        model.addAttribute("messages", messages);
+        model.addAttribute("page", page);
+        model.addAttribute("url", "/main");
 
         return "main";
     }
@@ -107,21 +114,26 @@ public class MainController {
         }
     }
 
-    @GetMapping("/user-messages/{user}")
+    @GetMapping("/user-messages/{author}")
     public String userMessages(
             @AuthenticationPrincipal User currentUser,
-            @PathVariable User user,
+            @PathVariable User author,
             @RequestParam(required = false) Message message,
+            @PageableDefault(sort = {"id"}, direction = Sort.Direction.DESC) Pageable pageable,
             Model model
     ) {
-        model.addAttribute("userChannel", user);
-        model.addAttribute("subscriptionsCount", user.getSubscriptions().size());
-        model.addAttribute("subscribersCount", user.getSubscribers().size());
-        model.addAttribute("isSubscriber", user.getSubscribers().contains(currentUser));
+        model.addAttribute("userChannel", author);
+        model.addAttribute("subscriptionsCount", author.getSubscriptions().size());
+        model.addAttribute("subscribersCount", author.getSubscribers().size());
+        model.addAttribute("isSubscriber", author.getSubscribers().contains(currentUser));
 
-        model.addAttribute("messages", user.getMessages());
+        model.addAttribute("messages", author.getMessages());
         model.addAttribute("message", message);
-        model.addAttribute("isCurrentUser", currentUser.equals(user));
+        model.addAttribute("isCurrentUser", currentUser.equals(author));
+
+        Page<MessageDto> page = messageService.messageListForUser(pageable, author, currentUser);
+        model.addAttribute("page", page);
+        model.addAttribute("url", "/user-messages/" + author.getId());
 
         return "userMessages";
     }
@@ -150,5 +162,25 @@ public class MainController {
         return "redirect:/user-messages/" + user;
     }
 
+    @GetMapping("/messages/{message}/like")
+    public String like(
+            @AuthenticationPrincipal User currentUser,
+            @PathVariable Message message,
+            RedirectAttributes redirectAttributes,
+            @RequestHeader(required = false) String referer
+    ) {
+        Set<User> likes = message.getLikes();
 
+        if (likes.contains(currentUser))
+            likes.remove(currentUser);
+        else
+            likes.add(currentUser);
+
+        UriComponents components = UriComponentsBuilder.fromHttpUrl(referer).build();
+
+        components.getQueryParams()
+                .forEach(redirectAttributes::addAttribute);
+
+        return "redirect:" + components.getPath();
+    }
 }

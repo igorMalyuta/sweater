@@ -2,7 +2,6 @@
    aria-controls="collapseExample">
     <#if message??>
         Изменить сообщение
-
         <#else>
             Добавить сообщение
     </#if>
